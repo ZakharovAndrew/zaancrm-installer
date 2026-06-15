@@ -323,4 +323,93 @@ EOF
 
 install_core_modules() {
     log_step "Установка обязательных модулей ZaanCRM"
+
+    # Установка модуля пользователей
+    log_info "Установка модуля пользователей (zakharov-andrew/yii2-user)..."
+    composer require --prefer-dist --no-interaction "zakharov-andrew/yii2-user:^3.0"
+    
+    # Установка модуля страниц
+    log_info "Установка модуля страниц (zakharov-andrew/yii2-pages)..."
+    composer require --prefer-dist --no-interaction "zakharov-andrew/yii2-pages:^2.0"
+    
+    # Установка остальных обязательных модулей
+    for module in "${CORE_MODULES[@]}"; do
+        if [[ "$module" != "zakharov-andrew/yii2-user" ]] && [[ "$module" != "zakharov-andrew/yii2-pages" ]]; then
+            log_info "Установка $module..."
+            composer require --prefer-dist --no-interaction "$module"
+        fi
+    done
+    
+    # Обновление config/web.php
+    log_info "Настройка конфигурации приложения..."
+    update_web_config
+    
+    log_success "Обязательные модули установлены и настроены"
+}
+
+update_web_config_php() {
+    log_info "Обновление config/web.php через PHP..."
+    
+    # Создание резервной копии
+    if [ -f "config/web.php" ]; then
+        BACKUP_FILE="config/web.php.backup.$(date +%Y%m%d_%H%M%S)"
+        cp config/web.php "$BACKUP_FILE"
+    fi
+    
+    # Использование PHP для безопасного добавления конфигурации
+    php -r "
+        \$configFile = 'config/web.php';
+        \$config = require \$configFile;
+        
+        // Добавление модуля user
+        if (!isset(\$config['modules']['user'])) {
+            \$config['modules']['user'] = [
+                'class' => 'ZakharovAndrew\\user\\Module',
+                'bootstrapVersion' => 5,
+                'showTitle' => true,
+                'enableUserSignup' => true,
+                'telegramToken' => env('TELEGRAM_BOT_TOKEN', ''),
+                'telegramBotLink' => 'https://t.me/zaancrm_bot',
+                'controllersAccessList' => [
+                    1001 => [
+                        'Users' => [
+                            '/user/user/index' => 'users',
+                            '/user/user/create' => 'create user',
+                            '/user/user/update' => 'update user',
+                            '/user/user/delete' => 'delete user',
+                        ],
+                    ],
+                    1002 => ['/user/roles/index' => 'Roles'],
+                ],
+            ];
+        }
+        
+        // Добавление модуля pages
+        if (!isset(\$config['modules']['pages'])) {
+            \$config['modules']['pages'] = [
+                'class' => 'ZakharovAndrew\\pages\\Module',
+                'imageUploadPath' => '@webroot/uploads/pages',
+                'imageUploadUrl' => '@web/uploads/pages',
+            ];
+        }
+        
+        // Добавление компонента telegram
+        if (!isset(\$config['components']['telegram'])) {
+            \$config['components']['telegram'] = [
+                'class' => 'ZakharovAndrew\\user\\components\\Telegram',
+                'token' => env('TELEGRAM_BOT_TOKEN', ''),
+            ];
+        }
+        
+        // Сохранение конфигурации
+        file_put_contents(\$configFile, '<?php\n\nreturn ' . var_export(\$config, true) . ';\n');
+    "
+    
+    if [ $? -eq 0 ]; then
+        log_success "config/web.php успешно обновлен через PHP"
+    else
+        log_error "Ошибка при обновлении config/web.php"
+        cp "$BACKUP_FILE" config/web.php
+        exit 1
+    fi
 }

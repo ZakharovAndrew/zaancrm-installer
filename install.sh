@@ -6,7 +6,7 @@
 # с расширенными модулями: пользователи + страницы
 #
 # Использование:
-#   curl -fsSL https://your-server.com/install-zaancrm.sh | bash
+#   curl -fsSL https://zaan.ru/install-zaancrm.sh | bash
 #
 # Или с опциями:
 #   curl -fsSL ... | bash -s -- --db-name=zaancrm --db-user=zaan_user
@@ -326,11 +326,11 @@ install_core_modules() {
 
     # Установка модуля пользователей
     log_info "Установка модуля пользователей (zakharov-andrew/yii2-user)..."
-    composer require --prefer-dist --no-interaction "zakharov-andrew/yii2-user:^3.0"
+    composer require --prefer-dist --no-interaction "zakharov-andrew/yii2-user"
     
     # Установка модуля страниц
     log_info "Установка модуля страниц (zakharov-andrew/yii2-pages)..."
-    composer require --prefer-dist --no-interaction "zakharov-andrew/yii2-pages:^2.0"
+    composer require --prefer-dist --no-interaction "zakharov-andrew/yii2-pages"
     
     # Установка остальных обязательных модулей
     for module in "${CORE_MODULES[@]}"; do
@@ -413,3 +413,102 @@ update_web_config_php() {
         exit 1
     fi
 }
+
+configure_database() {
+    if [ "$SETUP_DB" = false ]; then
+        log_info "Настройка БД пропущена"
+        return 0
+    fi
+    
+    log_step "Настройка базы данных"
+    
+    if [ "$INTERACTIVE" = true ]; then
+        DB_HOST=$(prompt_input "Хост БД" "$DB_HOST")
+        DB_PORT=$(prompt_input "Порт БД" "$DB_PORT")
+        DB_NAME=$(prompt_input "Имя БД" "$DB_NAME")
+        DB_USER=$(prompt_input "Пользователь БД" "$DB_USER")
+        DB_PASSWORD=$(prompt_password "Пароль пользователя БД")
+        ADMIN_PASSWORD=$(prompt_password "Пароль администратора ZaanCRM")
+    elif [ -z "$DB_PASSWORD" ]; then
+        DB_PASSWORD=$(openssl rand -base64 16 | tr -d "=+/" | cut -c1-12)
+        ADMIN_PASSWORD=$(openssl rand -base64 16 | tr -d "=+/" | cut -c1-12)
+        log_warn "Сгенерирован пароль БД: $DB_PASSWORD"
+        log_warn "Сгенерирован пароль администратора: $ADMIN_PASSWORD"
+        log_warn "Сохраните эти пароли!"
+    fi
+    
+    cat > "config/db.php" <<EOF
+<?php
+return [
+    'class' => 'yii\\db\\Connection',
+    'dsn' => 'mysql:host=$DB_HOST;port=$DB_PORT;dbname=$DB_NAME',
+    'username' => '$DB_USER',
+    'password' => '$DB_PASSWORD',
+    'charset' => 'utf8mb4',
+    
+    'enableSchemaCache' => '$ENV' === 'prod',
+    'schemaCacheDuration' => 3600,
+    'schemaCache' => 'cache',
+    'enableQueryLog' => '$ENV' !== 'prod',
+    'commandTimeout' => 30,
+];
+EOF
+    
+    log_success "Конфигурация БД сохранена"
+}
+
+setup_database() {
+    log_step "Инициализация базы данных"
+    
+    if ! command -v mysql &> /dev/null; then
+        log_warn "MySQL клиент не найден. Пропуск создания БД"
+        return 0
+    fi
+    
+    if prompt_yes_no "Создать базу данных '$DB_NAME'?" "yes"; then
+        log_info "Создание базы данных и пользователя..."
+        
+        read -s -p "Введите пароль root MySQL: " MYSQL_ROOT_PASSWORD
+        echo ""
+        
+        mysql -u root -p"$MYSQL_ROOT_PASSWORD" <<EOF
+CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` 
+    CHARACTER SET utf8mb4 
+    COLLATE utf8mb4_unicode_ci;
+
+CREATE USER IF NOT EXISTS '$DB_USER'@'%' 
+    IDENTIFIED BY '$DB_PASSWORD';
+
+GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* 
+    TO '$DB_USER'@'%';
+
+FLUSH PRIVILEGES;
+EOF
+        
+        if [ $? -eq 0 ]; then
+            log_success "База данных и пользователь созданы"
+        else
+            log_error "Ошибка создания БД"
+        fi
+    fi
+}
+
+run_migrations() {
+    if [ "$RUN_MIGRATIONS" = false ]; then
+        log_info "Миграции пропущены"
+        return 0
+    fi
+    
+    log_step "Выполнение миграций"
+    
+    # Миграции модуля пользователей
+    log_info "Миграции модуля пользователей..."
+    php yii migrate/up --migrationPath=@vendor/zakharov-andrew/yii2-user/migrations --interactive=0
+    
+    # Миграции модуля страниц
+    log_info "Миграции модуля страниц..."
+    php yii migrate/up --migrationPath=@vendor/zakharov-andrew/yii2-pages/migrations --interactive=0
+    
+    log_success "Миграции выполнены"
+}
+

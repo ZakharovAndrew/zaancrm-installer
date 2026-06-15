@@ -24,4 +24,16 @@
 ## Быстрая установка (одной строкой)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ваш-логин/zaancrm-installer/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ZakharovAndrew/zaancrm-installer/main/install.sh | bash
+```
+
+После запуска скрипт задаст несколько вопросов: параметры БД, пароль администратора и т.д. По окончании в текущей папке появится каталог ZaanCRM.
+
+## Ручная установка
+
+```bash
+git clone https://github.com/ваш-логин/zaancrm-installer.git
+cd zaancrm-installer
+bash install.sh --no-interactive --db-name mydb --admin-password secret
+```
+

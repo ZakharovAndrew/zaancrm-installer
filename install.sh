@@ -288,6 +288,36 @@ check_database_driver() {
     fi
 }
 
+setup_environment() {
+    log_step "Настройка окружения"
+    
+    # Для Yii2 Basic просто создаём файлы конфигурации
+    if [ "$ENV" = "prod" ]; then
+        log_info "Настройка production окружения..."
+        # Отключаем отладку
+        sed -i "s/YII_DEBUG' => true/YII_DEBUG' => false/g" config/web.php 2>/dev/null || true
+        sed -i "s/YII_ENV' => 'dev'/YII_ENV' => 'prod'/g" config/web.php 2>/dev/null || true
+        log_success "Режим: Production"
+    else
+        log_info "Настройка development окружения..."
+        sed -i "s/YII_DEBUG' => false/YII_DEBUG' => true/g" config/web.php 2>/dev/null || true
+        sed -i "s/YII_ENV' => 'prod'/YII_ENV' => 'dev'/g" config/web.php 2>/dev/null || true
+        log_success "Режим: Development"
+    fi
+    
+    # Создание .env файла
+    cat > ".env" <<EOF
+APP_ENV=$ENV
+APP_NAME=ZaanCRM
+DB_HOST=$DB_HOST
+DB_NAME=$DB_NAME
+DB_USER=$DB_USER
+DB_PASSWORD=$DB_PASSWORD
+EOF
+    
+    log_success "Окружение настроено"
+}
+
 create_project() {
     log_step "Создание проекта ZaanCRM"
     

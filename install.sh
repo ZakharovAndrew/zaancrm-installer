@@ -413,6 +413,10 @@ update_web_config_php() {
     
     # Использование PHP для безопасного добавления конфигурации
     php -r "
+
+        defined('YII_DEBUG') or define('YII_DEBUG', true);
+        defined('YII_ENV') or define('YII_ENV', 'dev');
+        
         \$configFile = 'config/web.php';
         \$config = require \$configFile;
         

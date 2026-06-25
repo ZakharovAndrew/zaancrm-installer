@@ -397,7 +397,7 @@ install_core_modules() {
     
     # Обновление config/web.php
     log_info "Настройка конфигурации приложения..."
-    update_web_config
+    update_web_config_php
     
     log_success "Обязательные модули установлены и настроены"
 }
@@ -779,7 +779,7 @@ main() {
     # Установка проекта
     create_project
     setup_environment
-    update_web_config_php
+	install_core_modules
     # install_modules
     
     # Настройка БД и веб-сервера

@@ -512,3 +512,258 @@ run_migrations() {
     log_success "Миграции выполнены"
 }
 
+# ============================================================================
+# Дополнительная настройка
+# ============================================================================
+
+configure_web_server() {
+    if [ "$SETUP_WEB_SERVER" = false ]; then
+        return 0
+    fi
+    
+    log_info "Настройка веб-сервера..."
+    
+    # Конфигурация для Nginx
+    if command -v nginx &> /dev/null; then
+        cat > "/etc/nginx/sites-available/$PROJECT_NAME" <<EOF
+server {
+    listen 80;
+    server_name $PROJECT_NAME.local;
+    root $PROJECT_DIR/frontend/web;
+    
+    index index.php;
+    
+    location / {
+        try_files \$uri \$uri/ /index.php?\$args;
+    }
+    
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/var/run/php/php-fpm.sock;
+    }
+    
+    location ~ /\.ht {
+        deny all;
+    }
+}
+EOF
+        ln -s "/etc/nginx/sites-available/$PROJECT_NAME" "/etc/nginx/sites-enabled/" 2>/dev/null || true
+        systemctl reload nginx 2>/dev/null || true
+        log_success "Nginx настроен"
+    fi
+    
+    # Настройка прав
+    chmod 755 "$PROJECT_DIR"
+    chmod -R 755 "$PROJECT_DIR/frontend/web/assets"
+    chmod -R 755 "$PROJECT_DIR/backend/web/assets"
+    chmod -R 755 "$PROJECT_DIR/runtime"
+    chmod -R 755 "$PROJECT_DIR/backend/runtime"
+    chmod -R 755 "$PROJECT_DIR/frontend/runtime"
+    
+    log_success "Права доступа настроены"
+}
+
+# ============================================================================
+# Финальные шаги
+# ============================================================================
+
+print_completion() {
+    echo ""
+    echo -e "${GREEN}${BOLD}"
+    echo "┌─────────────────────────────────────────────────────────┐"
+    echo "│           ✅ Установка Yii2 успешно завершена!           │"
+    echo "└─────────────────────────────────────────────────────────┘"
+    echo -e "${NC}"
+    
+    echo -e "${BOLD}📁 Расположение проекта:${NC}"
+    echo "  $PROJECT_DIR"
+    echo ""
+    
+    echo -e "${BOLD}🗄️  База данных:${NC}"
+    echo "  Хост:     $DB_HOST"
+    echo "  База:     $DB_NAME"
+    echo "  Пользователь: $DB_USER"
+    echo "  Пароль:   $DB_PASSWORD"
+    echo ""
+    
+    if [ "$SETUP_WEB_SERVER" = true ]; then
+        echo -e "${BOLD}🌐 Веб-доступ:${NC}"
+        echo "  http://$PROJECT_NAME.local"
+        echo "  Или настройте виртуальный хост"
+        echo ""
+    fi
+    
+    echo -e "${BOLD}🔧 Полезные команды:${NC}"
+    echo "  cd $PROJECT_DIR"
+    echo "  php yii serve        # Запуск dev сервера"
+    echo "  php yii migrate      # Выполнение миграций"
+    echo "  php yii help         # Справка по консольным командам"
+    echo ""
+    
+    echo -e "${BOLD}📦 Установленные модули:${NC}"
+    for module in "${MODULES[@]}"; do
+        echo "  - $module"
+    done
+    echo ""
+    
+    if [ "$ENV" = "prod" ]; then
+        echo -e "${YELLOW}⚠️  Внимание:${NC}"
+        echo "  Приложение запущено в production режиме"
+        echo "  Убедитесь, что файлы конфигурации защищены"
+        echo "  Включите HTTPS для безопасной работы"
+        echo ""
+    fi
+    
+    echo -e "${CYAN}🚀 Готово!${NC}"
+}
+
+# ============================================================================
+# Парсинг аргументов командной строки
+# ============================================================================
+
+parse_arguments() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --project-name)
+                PROJECT_NAME="$2"
+                shift 2
+                ;;
+            --project-dir)
+                PROJECT_DIR="$2"
+                shift 2
+                ;;
+            --db-host)
+                DB_HOST="$2"
+                shift 2
+                ;;
+            --db-port)
+                DB_PORT="$2"
+                shift 2
+                ;;
+            --db-name)
+                DB_NAME="$2"
+                shift 2
+                ;;
+            --db-user)
+                DB_USER="$2"
+                shift 2
+                ;;
+            --db-password)
+                DB_PASSWORD="$2"
+                shift 2
+                ;;
+            --db-driver)
+                DB_DRIVER="$2"
+                shift 2
+                ;;
+            --env)
+                ENV="$2"
+                shift 2
+                ;;
+            --no-interactive)
+                INTERACTIVE=false
+                shift
+                ;;
+            --skip-modules)
+                INSTALL_MODULES=false
+                shift
+                ;;
+            --skip-db)
+                SETUP_DB=false
+                shift
+                ;;
+            --skip-migrations)
+                RUN_MIGRATIONS=false
+                shift
+                ;;
+            --setup-web-server)
+                SETUP_WEB_SERVER=true
+                shift
+                ;;
+            --admin-email)
+                ADMIN_EMAIL="$2"
+                shift 2
+                ;;
+            -h|--help)
+                cat << EOF
+Yii2 Advanced Project Installer
+
+Использование: install.sh [ОПЦИИ]
+
+Опции:
+  --project-name NAME    Имя проекта (по умолчанию: yii2-app)
+  --project-dir PATH     Директория установки
+  --db-host HOST         Хост БД (по умолчанию: localhost)
+  --db-port PORT         Порт БД (по умолчанию: 3306)
+  --db-name NAME         Имя базы данных
+  --db-user USER         Пользователь БД
+  --db-password PASS     Пароль БД
+  --db-driver DRIVER     Драйвер БД (mysql или pgsql)
+  --env ENV              Окружение (dev или prod)
+  --no-interactive       Неинтерактивный режим
+  --skip-modules         Пропустить установку модулей
+  --skip-db              Пропустить настройку БД
+  --skip-migrations      Пропустить миграции
+  --setup-web-server     Настроить веб-сервер
+  --admin-email EMAIL    Email администратора
+  -h, --help             Показать эту справку
+
+Примеры:
+  # Интерактивная установка
+  bash install.sh
+
+  # Автоматическая установка с параметрами
+  bash install.sh --db-name myapp --db-user myuser --db-password secret
+
+  # Установка с PostgreSQL
+  bash install.sh --db-driver pgsql --db-name myapp
+EOF
+                exit 0
+                ;;
+            *)
+                log_error "Неизвестная опция: $1"
+                exit 1
+                ;;
+        esac
+    done
+}
+
+# ============================================================================
+# Главная функция установки
+# ============================================================================
+
+main() {
+    parse_arguments "$@"
+    print_banner
+    
+    # Проверка системы
+    check_php
+    check_composer
+    check_extensions
+    check_database_driver
+    
+    # Установка проекта
+    create_project
+    setup_environment
+    install_modules
+    
+    # Настройка БД и веб-сервера
+    if [ "$SETUP_DB" = true ]; then
+        configure_database
+    fi
+    
+    if [ "$SETUP_WEB_SERVER" = true ]; then
+        configure_web_server
+    fi
+    
+    # Создание администратора для production
+    if [ "$ENV" = "prod" ]; then
+        create_admin_user
+    fi
+    
+    # Финальные сообщения
+    print_completion
+}
+
+# Запуск главной функции
+main "$@"

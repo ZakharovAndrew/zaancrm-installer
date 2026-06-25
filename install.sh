@@ -263,6 +263,31 @@ check_git() {
     log_success "Git установлен"
 }
 
+check_database_driver() {
+    log_info "Проверка драйверов БД..."
+    
+    if [ "$DB_DRIVER" = "mysql" ]; then
+        if ! php -m | grep -q pdo_mysql; then
+            log_warn "Расширение pdo_mysql не установлено"
+            log_info "Установите: sudo apt install php-mysql"
+            log_info "Продолжение установки возможно, но будут проблемы с БД"
+        else
+            log_success "PDO MySQL установлен"
+        fi
+    elif [ "$DB_DRIVER" = "pgsql" ]; then
+        if ! php -m | grep -q pdo_pgsql; then
+            log_warn "Расширение pdo_pgsql не установлено"
+            log_info "Установите: sudo apt install php-pgsql"
+            log_info "Продолжение установки возможно, но будут проблемы с БД"
+        else
+            log_success "PDO PostgreSQL установлен"
+        fi
+    else
+        log_warn "Неизвестный драйвер БД: $DB_DRIVER"
+        log_info "Поддерживаются: mysql, pgsql"
+    fi
+}
+
 create_project() {
     log_step "Создание проекта ZaanCRM"
     

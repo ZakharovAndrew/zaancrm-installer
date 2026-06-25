@@ -780,6 +780,7 @@ main() {
     create_project
     setup_environment
 	install_core_modules
+	run_migrations
     # install_modules
     
     # Настройка БД и веб-сервера

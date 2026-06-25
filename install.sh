@@ -197,7 +197,7 @@ check_php() {
     fi
 }
 
-check_composer_local() {
+check_composer() {
     log_info "Проверка Composer..."
     
     if ! command -v composer &> /dev/null; then

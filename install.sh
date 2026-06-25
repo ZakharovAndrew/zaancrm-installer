@@ -59,7 +59,7 @@ CORE_MODULES=(
     "zakharov-andrew/yii2-user"           # Расширенный модуль пользователей
     "zakharov-andrew/yii2-pages"          # Модуль управления страницами
     "yiisoft/yii2-bootstrap5"              # Bootstrap 5 интерфейс
-    "yiisoft/yii2-fontawesome"             # Иконки FontAwesome
+    # "yiisoft/yii2-fontawesome"             # Иконки FontAwesome
     "kartik-v/yii2-dialog"                 # Диалоговые окна
     "kartik-v/yii2-grid"                   # Расширенная таблица
     "kartik-v/yii2-widget-select2"         # Улучшенные select

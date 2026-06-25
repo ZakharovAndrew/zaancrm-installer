@@ -470,28 +470,33 @@ update_web_config_php() {
 }
 
 configure_database() {
-    if [ "$SETUP_DB" = false ]; then
-        log_info "Настройка БД пропущена"
-        return 0
-    fi
-    
     log_step "Настройка базы данных"
     
-    if [ "$INTERACTIVE" = true ]; then
-        DB_HOST=$(prompt_input "Хост БД" "$DB_HOST")
-        DB_PORT=$(prompt_input "Порт БД" "$DB_PORT")
-        DB_NAME=$(prompt_input "Имя БД" "$DB_NAME")
-        DB_USER=$(prompt_input "Пользователь БД" "$DB_USER")
-        DB_PASSWORD=$(prompt_password "Пароль пользователя БД")
-        ADMIN_PASSWORD=$(prompt_password "Пароль администратора ZaanCRM")
-    elif [ -z "$DB_PASSWORD" ]; then
-        DB_PASSWORD=$(openssl rand -base64 16 | tr -d "=+/" | cut -c1-12)
-        ADMIN_PASSWORD=$(openssl rand -base64 16 | tr -d "=+/" | cut -c1-12)
-        log_warn "Сгенерирован пароль БД: $DB_PASSWORD"
-        log_warn "Сгенерирован пароль администратора: $ADMIN_PASSWORD"
-        log_warn "Сохраните эти пароли!"
+    # Проверка в неинтерактивном режиме
+    if [ "$INTERACTIVE" = false ]; then
+        if [ -z "$DB_NAME" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASSWORD" ]; then
+            log_error "Неинтерактивный режим требует передачи параметров БД:"
+            log_error "  --db-name, --db-user, --db-password"
+            exit 1
+        fi
+        log_info "Использование переданных параметров БД"
+    else
+        # Интерактивный запрос недостающих параметров
+        if [ -z "$DB_NAME" ]; then
+            DB_NAME=$(prompt_input "Имя базы данных" "zaancrm")
+        fi
+        if [ -z "$DB_USER" ]; then
+            DB_USER=$(prompt_input "Пользователь БД" "zaan_user")
+        fi
+        if [ -z "$DB_PASSWORD" ]; then
+            DB_PASSWORD=$(prompt_password "Пароль пользователя БД")
+        fi
+        if [ -z "$DB_HOST" ]; then
+            DB_HOST=$(prompt_input "Хост БД" "localhost")
+        fi
     fi
     
+    # Создание конфигурации
     cat > "config/db.php" <<EOF
 <?php
 return [
@@ -500,12 +505,6 @@ return [
     'username' => '$DB_USER',
     'password' => '$DB_PASSWORD',
     'charset' => 'utf8mb4',
-    
-    'enableSchemaCache' => '$ENV' === 'prod',
-    'schemaCacheDuration' => 3600,
-    'schemaCache' => 'cache',
-    'enableQueryLog' => '$ENV' !== 'prod',
-    'commandTimeout' => 30,
 ];
 EOF
     

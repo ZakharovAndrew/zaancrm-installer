@@ -410,67 +410,43 @@ update_web_config_php() {
         BACKUP_FILE="config/web.php.backup.$(date +%Y%m%d_%H%M%S)"
         cp config/web.php "$BACKUP_FILE"
     fi
-    
-    # Использование PHP для безопасного добавления конфигурации
-    php -r "
 
-        defined('YII_DEBUG') or define('YII_DEBUG', true);
-        defined('YII_ENV') or define('YII_ENV', 'dev');
-        
-        \$configFile = 'config/web.php';
-        \$config = require \$configFile;
-        
-        // Добавление модуля user
-        if (!isset(\$config['modules']['user'])) {
-            \$config['modules']['user'] = [
-                'class' => 'ZakharovAndrew\\user\\Module',
-                'bootstrapVersion' => 5,
-                'showTitle' => true,
-                'enableUserSignup' => true,
-                'telegramToken' => env('TELEGRAM_BOT_TOKEN', ''),
-                'telegramBotLink' => 'https://t.me/zaancrm_bot',
-                'controllersAccessList' => [
-                    1001 => [
-                        'Users' => [
-                            '/user/user/index' => 'users',
-                            '/user/user/create' => 'create user',
-                            '/user/user/update' => 'update user',
-                            '/user/user/delete' => 'delete user',
-                        ],
-                    ],
-                    1002 => ['/user/roles/index' => 'Roles'],
-                ],
-            ];
-        }
-        
-        // Добавление модуля pages
-        if (!isset(\$config['modules']['pages'])) {
-            \$config['modules']['pages'] = [
-                'class' => 'ZakharovAndrew\\pages\\Module',
-                'imageUploadPath' => '@webroot/uploads/pages',
-                'imageUploadUrl' => '@web/uploads/pages',
-            ];
-        }
-        
-        // Добавление компонента telegram
-        if (!isset(\$config['components']['telegram'])) {
-            \$config['components']['telegram'] = [
-                'class' => 'ZakharovAndrew\\user\\components\\Telegram',
-                'token' => env('TELEGRAM_BOT_TOKEN', ''),
-            ];
-        }
-        
-        // Сохранение конфигурации
-        file_put_contents(\$configFile, '<?php\n\nreturn ' . var_export(\$config, true) . ';\n');
-    "
-    
-    if [ $? -eq 0 ]; then
-        log_success "config/web.php успешно обновлен через PHP"
-    else
-        log_error "Ошибка при обновлении config/web.php"
-        cp "$BACKUP_FILE" config/web.php
-        exit 1
-    fi
+    	sed -i 's/\$config = \[/\$config = \[\
+\t'\''modules'\'' => require __DIR__ . '\''\/modules.php'\'',\
+\t'\''name'\'' => '\''ZaanCRM'\'',/g' config/web.php
+
+	# Создаем файл с модулями
+	cat > "config/modules.php" <<'EOF'
+<?php
+return [
+    'user' => [
+        'class' => 'ZakharovAndrew\\user\\Module',
+		'bootstrapVersion' => 5,
+		'showTitle' => true,
+		'enableUserSignup' => true,
+		'telegramToken' => env('TELEGRAM_BOT_TOKEN', ''),
+		'telegramBotLink' => 'https://t.me/zaancrm_bot',
+		'controllersAccessList' => [
+			1001 => [
+				'Users' => [
+					'/user/user/index' => 'users',
+					'/user/user/create' => 'create user',
+					'/user/user/update' => 'update user',
+					'/user/user/delete' => 'delete user',
+				],
+			],
+			1002 => ['/user/roles/index' => 'Roles'],
+		],
+    ],
+    'pages' => [
+        'class' => 'ZakharovAndrew\\pages\\Module',
+		'imageUploadPath' => '@webroot/uploads/pages',
+		'imageUploadUrl' => '@web/uploads/pages',
+    ],
+];
+EOF
+
+    log_success "config/web.php успешно обновлен"
 }
 
 configure_database() {

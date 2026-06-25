@@ -799,6 +799,7 @@ main() {
     # Установка проекта
     create_project
     setup_environment
+    update_web_config_php
     # install_modules
     
     # Настройка БД и веб-сервера

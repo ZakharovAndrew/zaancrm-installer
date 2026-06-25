@@ -800,7 +800,7 @@ main() {
     # Установка проекта
     create_project
     setup_environment
-    install_modules
+    # install_modules
     
     # Настройка БД и веб-сервера
     if [ "$SETUP_DB" = true ]; then

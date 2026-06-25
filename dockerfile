@@ -3,6 +3,7 @@ FROM php:8.1-apache
 
 # Установка системных зависимостей
 RUN apt-get update && apt-get install -y \
+    mc \    
     git \
     curl \
     wget \

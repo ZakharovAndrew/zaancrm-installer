@@ -75,11 +75,11 @@ cd /var/www/html\n\
 if [ ! -f "/var/www/html/config/web.php" ]; then\n\
     log "Установка ZaanCRM..."\n\
     /tmp/install-zaancrm.sh --interactive=0 \\\n\
-        --db-host=db \\\n\
-        --db-name=zaancrm \\\n\
-        --db-user=zaan_user \\\n\
-        --db-password=zaan_password \\\n\
-        --admin-password=admin123 \\\n\
+        --db-host db \\\n\
+        --db-name zaancrm \\\n\
+        --db-user zaan_user \\\n\
+        --db-password zaan_password \\\n\
+        --admin-password admin123 \\\n\
         --env=dev\n\
     \n\
     log "Настройка прав доступа..."\n\

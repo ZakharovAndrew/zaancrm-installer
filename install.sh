@@ -631,7 +631,7 @@ update_layout_main() {
     # Использование heredoc для PHP-кода
     php <<'PHP'
 <?php
-$file = '$LAYOUT_FILE';
+$file = 'views/layouts/main.php';
 $content = file_get_contents($file);
 
 // Проверка, уже ли применены изменения
@@ -641,20 +641,28 @@ if (strpos($content, 'array_merge(ZakharovAndrew\\user\\models\\Menu::getNavBar(
 }
 
 // УПРОЩЁННЫЙ ПАТТЕРН: находим Nav::widget, затем 'items' => [, затем NavBar::end();
-$pattern = '/Nav::widget.*?' . "'items' => \\[" . '.*?NavBar::end\\(\\)/s';
+$pattern = '/(Nav::widget(.*?)NavBar::end)/s';
 
-// Заменяем 'items' => [ на array_merge
-$new_content = preg_replace_callback(
-    $pattern,
-    function($matches) {
-        // Заменяем 'items' => [ на array_merge
-        return str_replace(
-            "'items' => [",
-            "'items' => array_merge(ZakharovAndrew\\user\\models\\Menu::getNavBar(), [",
-            $matches[0]
-        );
-    },
-    $content
+$new_content = preg_replace(
+	$pattern,
+	"Nav::widget([
+        'options' => ['class' => 'navbar-nav'],
+        'items' => array_merge(ZakharovAndrew\user\models\Menu::getNavBar(), [
+            ".'Yii::$app->user->isGuest'."
+                ? ['label' => 'Login', 'url' => ['/site/login']]
+                : '<li class="nav-item">'
+                    . Html::beginForm(['/site/logout'])
+                    . Html::submitButton(
+                        'Logout (' . ".'Yii::$app'."->user->identity->username . ')',
+                        ['class' => 'nav-link btn btn-link logout']
+                    )
+                    . Html::endForm()
+                    . '</li>'
+        ])
+    ]);
+    NavBar::end",
+	$content,
+	1  // лимит = 1 (только первое вхождение)
 );
 
 if ($new_content !== null && $new_content !== $content) {
@@ -680,7 +688,6 @@ PHP
         return 1
     fi
 }
-
 # ============================================================================
 # Дополнительная настройка
 # ============================================================================

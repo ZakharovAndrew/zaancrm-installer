@@ -628,41 +628,43 @@ update_layout_main() {
         return 0
     fi
     
-    php -r "
-        \$file = '$LAYOUT_FILE';
-        \$content = file_get_contents(\$file);
-        
-        // Проверка, уже ли применены изменения
-        if (strpos(\$content, 'array_merge(ZakharovAndrew\\\\user\\\\models\\\\Menu::getNavBar()') !== false) {
-            echo \"Изменения уже применены\n\";
-            exit(0);
-        }
-        
-        // УПРОЩЁННЫЙ ПАТТЕРН: находим Nav::widget, затем 'items' => [, затем NavBar::end();
-        \$pattern = '/Nav::widget.*?'items' => \[.*?NavBar::end\(\)/s';
-        
+    # Использование heredoc для PHP-кода
+    php <<'PHP'
+<?php
+$file = '$LAYOUT_FILE';
+$content = file_get_contents($file);
+
+// Проверка, уже ли применены изменения
+if (strpos($content, 'array_merge(ZakharovAndrew\\user\\models\\Menu::getNavBar()') !== false) {
+    echo "Изменения уже применены\n";
+    exit(0);
+}
+
+// УПРОЩЁННЫЙ ПАТТЕРН: находим Nav::widget, затем 'items' => [, затем NavBar::end();
+$pattern = '/Nav::widget.*?' . "'items' => \\[" . '.*?NavBar::end\\(\\)/s';
+
+// Заменяем 'items' => [ на array_merge
+$new_content = preg_replace_callback(
+    $pattern,
+    function($matches) {
         // Заменяем 'items' => [ на array_merge
-        \$new_content = preg_replace_callback(
-            \$pattern,
-            function(\$matches) {
-                // Заменяем 'items' => [ на array_merge
-                return str_replace(
-                    \"'items' => [\",
-                    \"'items' => array_merge(ZakharovAndrew\\\\user\\\\models\\\\Menu::getNavBar(), [\",
-                    \$matches[0]
-                );
-            },
-            \$content
+        return str_replace(
+            "'items' => [",
+            "'items' => array_merge(ZakharovAndrew\\user\\models\\Menu::getNavBar(), [",
+            $matches[0]
         );
-        
-        if (\$new_content !== null && \$new_content !== \$content) {
-            file_put_contents(\$file, \$new_content);
-            echo \"Блок навигации обновлен\n\";
-        } else {
-            echo \"Блок не найден или не удалось заменить\n\";
-            exit(1);
-        }
-    "
+    },
+    $content
+);
+
+if ($new_content !== null && $new_content !== $content) {
+    file_put_contents($file, $new_content);
+    echo "Блок навигации обновлен\n";
+} else {
+    echo "Блок не найден или не удалось заменить\n";
+    exit(1);
+}
+PHP
     
     if [ $? -eq 0 ]; then
         if php -l "$LAYOUT_FILE" >/dev/null 2>&1; then

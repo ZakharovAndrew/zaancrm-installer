@@ -549,20 +549,6 @@ run_migrations() {
 create_user_model() {
     log_info "Создание модели User.php..."
     
-    # Проверяем, существует ли уже файл
-    if [ -f "models/User.php" ]; then
-        log_warn "models/User.php уже существует"
-        if [ "$INTERACTIVE" = true ]; then
-            if ! prompt_yes_no "Перезаписать models/User.php?" "no"; then
-                log_info "Сохранение существующего файла"
-                return 0
-            fi
-        fi
-    fi
-    
-    # Создаем директорию models, если её нет
-    mkdir -p models
-    
     # Создаем файл User.php
     cat > "models/User.php" <<'EOF'
 <?php
@@ -663,11 +649,8 @@ EOF
     
     # Настройка прав
     chmod 755 "$PROJECT_DIR"
-    chmod -R 755 "$PROJECT_DIR/frontend/web/assets"
-    chmod -R 755 "$PROJECT_DIR/backend/web/assets"
+    chmod -R 755 "$PROJECT_DIR/web/assets"
     chmod -R 755 "$PROJECT_DIR/runtime"
-    chmod -R 755 "$PROJECT_DIR/backend/runtime"
-    chmod -R 755 "$PROJECT_DIR/frontend/runtime"
     
     log_success "Права доступа настроены"
 }

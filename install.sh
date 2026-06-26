@@ -612,7 +612,6 @@ update_layout_main() {
     
     LAYOUT_FILE="views/layouts/main.php"
     
-    # Проверка существования файла
     if [ ! -f "$LAYOUT_FILE" ]; then
         log_error "Файл $LAYOUT_FILE не найден!"
         return 1
@@ -629,7 +628,6 @@ update_layout_main() {
         return 0
     fi
     
-    # Использование PHP для полной замены блока
     php -r "
         \$file = '$LAYOUT_FILE';
         \$content = file_get_contents(\$file);
@@ -640,37 +638,22 @@ update_layout_main() {
             exit(0);
         }
         
-        // Находим блок Nav::widget( ... NavBar::end();
-        // Используем регулярное выражение с ленивым поиском
-        \$pattern = '/Nav::widget\\(\\s*\\[.*?' . \"'items' => \\[\" . '.*?\\]\\];\\s*NavBar::end\\(\\);/s';
+        // УПРОЩЁННЫЙ ПАТТЕРН: находим Nav::widget, затем 'items' => [, затем NavBar::end();
+        \$pattern = '/Nav::widget.*?'items' => \[.*?NavBar::end\(\)/s';
         
-        // Новый блок с array_merge
-        \$replacement = 'Nav::widget([
-    \"options\" => [
-        \"class\" => \"navbar navbar-expand-md navbar-dark bg-dark\",
-    ],
-    \"brandLabel\" => Yii::\$app->name,
-    \"brandUrl\" => Yii::\$app->homeUrl,
-    \"items\" => array_merge(
-        ZakharovAndrew\\\\user\\\\models\\\\Menu::getNavBar(),
-        [
-            [
-                \"label\" => \"Главная\",
-                \"url\" => [\"/site/index\"],
-            ],
-            Yii::\$app->user->isGuest
-                ? [\"label\" => \"Вход\", \"url\" => [\"/user/user/login\"]]
-                : \"<li>\"
-                    . \"<a href=\\\"\" . \\Yii::\\$app->urlManager->createUrl([\\\"/user/user/logout\\\"]) . \"\\\" data-method=\\\"post\\\">\"
-                    . \"Выход (\" . Yii::\\$app->user->identity->username . \")\"
-                    . \"</a>\"
-                    . \"</li>\",
-        ]
-    ),
-]);' . \"\n\" . 'NavBar::end();';
-        
-        // Заменяем блок
-        \$new_content = preg_replace(\$pattern, \$replacement, \$content);
+        // Заменяем 'items' => [ на array_merge
+        \$new_content = preg_replace_callback(
+            \$pattern,
+            function(\$matches) {
+                // Заменяем 'items' => [ на array_merge
+                return str_replace(
+                    \"'items' => [\",
+                    \"'items' => array_merge(ZakharovAndrew\\\\user\\\\models\\\\Menu::getNavBar(), [\",
+                    \$matches[0]
+                );
+            },
+            \$content
+        );
         
         if (\$new_content !== null && \$new_content !== \$content) {
             file_put_contents(\$file, \$new_content);
@@ -681,20 +664,16 @@ update_layout_main() {
         }
     "
     
-    # Проверка результата
     if [ $? -eq 0 ]; then
-        # Проверка синтаксиса PHP
         if php -l "$LAYOUT_FILE" >/dev/null 2>&1; then
             log_success "views/layouts/main.php успешно обновлен"
         else
             log_error "Ошибка в синтаксисе views/layouts/main.php!"
-            log_info "Восстановление из резервной копии..."
             cp "$BACKUP_FILE" "$LAYOUT_FILE"
             return 1
         fi
     else
-        log_error "Ошибка при замене блока навигации!"
-        log_info "Восстановление из резервной копии..."
+        log_error "Ошибка при обновлении!"
         cp "$BACKUP_FILE" "$LAYOUT_FILE"
         return 1
     fi
@@ -946,7 +925,7 @@ main() {
 	create_user_model
 
 	# ОБНОВЛЕНИЕ LAYOUT
-    update_layout_mai
+    update_layout_main
     
     if [ "$SETUP_WEB_SERVER" = true ]; then
         configure_web_server

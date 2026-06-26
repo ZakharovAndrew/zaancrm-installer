@@ -546,6 +546,81 @@ run_migrations() {
     log_success "Миграции выполнены"
 }
 
+create_user_model() {
+    log_info "Создание модели User.php..."
+    
+    # Проверяем, существует ли уже файл
+    if [ -f "models/User.php" ]; then
+        log_warn "models/User.php уже существует"
+        if [ "$INTERACTIVE" = true ]; then
+            if ! prompt_yes_no "Перезаписать models/User.php?" "no"; then
+                log_info "Сохранение существующего файла"
+                return 0
+            fi
+        fi
+    fi
+    
+    # Создаем директорию models, если её нет
+    mkdir -p models
+    
+    # Создаем файл User.php
+    cat > "models/User.php" <<'EOF'
+<?php
+
+namespace app\models;
+
+/**
+ * Модель пользователя ZaanCRM
+ * 
+ * Расширяет базовую модель пользователя из модуля zakharov-andrew/yii2-user
+ * Добавляйте свои методы и свойства здесь
+ */
+class User extends \ZakharovAndrew\user\models\User
+{
+    /**
+     * {@inheritdoc}
+     */
+    public function rules()
+    {
+        return array_merge(parent::rules(), [
+            // Добавьте свои правила валидации здесь
+            // Например:
+            // [['phone', 'string', 'max' => 20]],
+            // [['birthday'], 'safe'],
+        ]);
+    }
+    
+    /**
+     * {@inheritdoc}
+     */
+    public function attributeLabels()
+    {
+        return array_merge(parent::attributeLabels(), [
+            // Добавьте свои метки атрибутов здесь
+            // Например:
+            // 'phone' => 'Телефон',
+            // 'birthday' => 'Дата рождения',
+        ]);
+    }
+    
+    // Добавьте свои методы здесь
+    // Например:
+    // public function getFullName()
+    // {
+    //     return trim($this->first_name . ' ' . $this->last_name);
+    // }
+}
+EOF
+    
+    # Проверка синтаксиса PHP
+    if php -l "models/User.php" >/dev/null 2>&1; then
+        log_success "models/User.php создан успешно"
+    else
+        log_error "Ошибка в синтаксисе models/User.php!"
+        return 1
+    fi
+}
+
 # ============================================================================
 # Дополнительная настройка
 # ============================================================================
@@ -790,6 +865,9 @@ main() {
 
 	# выполняем миграции основных модулей
 	run_migrations
+
+	# создание пользовательской модели
+	create_user_model
     
     if [ "$SETUP_WEB_SERVER" = true ]; then
         configure_web_server

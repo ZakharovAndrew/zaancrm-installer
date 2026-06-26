@@ -607,6 +607,62 @@ EOF
     fi
 }
 
+update_layout_main() {
+    log_info "Обновление views/layouts/main.php..."
+    
+    LAYOUT_FILE="views/layouts/main.php"
+    
+    # Проверка существования файла
+    if [ ! -f "$LAYOUT_FILE" ]; then
+        log_error "Файл $LAYOUT_FILE не найден!"
+        return 1
+    fi
+    
+    # Создание резервной копии
+    BACKUP_FILE="views/layouts/main.php.backup.$(date +%Y%m%d_%H%M%S)"
+    cp "$LAYOUT_FILE" "$BACKUP_FILE"
+    log_info "Создана резервная копия: $BACKUP_FILE"
+    
+    # Проверяем, уже ли применены изменения
+    if grep -q "array_merge(ZakharovAndrew\\\\user\\\\models\\\\Menu::getNavBar()" "$LAYOUT_FILE" 2>/dev/null; then
+        log_info "Изменения уже применены, пропуск"
+        return 0
+    fi
+    
+    # Шаг 1: Заменяем 'items' => [ на 'items' => array_merge(ZakharovAndrew\user\models\Menu::getNavBar(), [
+    log_info "Замена 'items' => [ на array_merge..."
+    
+    # Экранирование для sed
+    sed -i "s/'items' => \[/'items' => array_merge(ZakharovAndrew\\\\\\\\user\\\\\\\\models\\\\\\\\Menu::getNavBar(), [/g" "$LAYOUT_FILE"
+    
+    # Шаг 2: Находим ]); NavBar::end(); и заменяем на ]) ]); NavBar::end();
+    log_info "Обновление закрывающих скобок..."
+    
+    # Сложная замена: находим ]); NavBar::end(); и заменяем на ]) ]); NavBar::end();
+    # Используем sed с несколькими шагами для надёжности
+    
+    # Шаг 2.1: Находим строку с NavBar::end() и добавляем перед ней закрывающие скобки
+    sed -i -e "/NavBar::end();/i\\
+    ])" "$LAYOUT_FILE"
+    
+    # Шаг 2.2: Добавляем ещё одну закрывающую скобку, если нужно
+    # Проверяем, не было ли уже добавлено
+    if ! grep -q "\\])\\]);" "$LAYOUT_FILE" 2>/dev/null; then
+        # Ищем последнее вхождение ]); NavBar::end();
+        sed -i -e "s/]); NavBar::end();/])\\n]);\\nNavBar::end();/g" "$LAYOUT_FILE"
+    fi
+    
+    # Проверка синтаксиса PHP
+    if php -l "$LAYOUT_FILE" >/dev/null 2>&1; then
+        log_success "views/layouts/main.php успешно обновлен"
+    else
+        log_error "Ошибка в синтаксисе views/layouts/main.php!"
+        log_info "Восстановление из резервной копии..."
+        cp "$BACKUP_FILE" "$LAYOUT_FILE"
+        return 1
+    fi
+}
+
 # ============================================================================
 # Дополнительная настройка
 # ============================================================================
@@ -851,6 +907,9 @@ main() {
 
 	# создание пользовательской модели
 	create_user_model
+
+	# ОБНОВЛЕНИЕ LAYOUT
+    update_layout_mai
     
     if [ "$SETUP_WEB_SERVER" = true ]; then
         configure_web_server

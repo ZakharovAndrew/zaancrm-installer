@@ -780,13 +780,16 @@ main() {
     create_project
     setup_environment
 	install_core_modules
-	run_migrations
+	
     # install_modules
     
     # Настройка БД и веб-сервера
     if [ "$SETUP_DB" = true ]; then
         configure_database
     fi
+
+	# выполняем миграции основных модулей
+	run_migrations
     
     if [ "$SETUP_WEB_SERVER" = true ]; then
         configure_web_server

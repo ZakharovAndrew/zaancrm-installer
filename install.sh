@@ -629,34 +629,71 @@ update_layout_main() {
         return 0
     fi
     
-    # Шаг 1: Заменяем 'items' => [ на 'items' => array_merge(ZakharovAndrew\user\models\Menu::getNavBar(), [
-    log_info "Замена 'items' => [ на array_merge..."
+    # Использование PHP для полной замены блока
+    php -r "
+        \$file = '$LAYOUT_FILE';
+        \$content = file_get_contents(\$file);
+        
+        // Проверка, уже ли применены изменения
+        if (strpos(\$content, 'array_merge(ZakharovAndrew\\\\user\\\\models\\\\Menu::getNavBar()') !== false) {
+            echo \"Изменения уже применены\n\";
+            exit(0);
+        }
+        
+        // Находим блок Nav::widget( ... NavBar::end();
+        // Используем регулярное выражение с ленивым поиском
+        \$pattern = '/Nav::widget\\(\\s*\\[.*?' . \"'items' => \\[\" . '.*?\\]\\];\\s*NavBar::end\\(\\);/s';
+        
+        // Новый блок с array_merge
+        \$replacement = 'Nav::widget([
+    \"options\" => [
+        \"class\" => \"navbar navbar-expand-md navbar-dark bg-dark\",
+    ],
+    \"brandLabel\" => Yii::\$app->name,
+    \"brandUrl\" => Yii::\$app->homeUrl,
+    \"items\" => array_merge(
+        ZakharovAndrew\\\\user\\\\models\\\\Menu::getNavBar(),
+        [
+            [
+                \"label\" => \"Главная\",
+                \"url\" => [\"/site/index\"],
+            ],
+            Yii::\$app->user->isGuest
+                ? [\"label\" => \"Вход\", \"url\" => [\"/user/user/login\"]]
+                : \"<li>\"
+                    . \"<a href=\\\"\" . \\Yii::\\$app->urlManager->createUrl([\\\"/user/user/logout\\\"]) . \"\\\" data-method=\\\"post\\\">\"
+                    . \"Выход (\" . Yii::\\$app->user->identity->username . \")\"
+                    . \"</a>\"
+                    . \"</li>\",
+        ]
+    ),
+]);' . \"\n\" . 'NavBar::end();';
+        
+        // Заменяем блок
+        \$new_content = preg_replace(\$pattern, \$replacement, \$content);
+        
+        if (\$new_content !== null && \$new_content !== \$content) {
+            file_put_contents(\$file, \$new_content);
+            echo \"Блок навигации обновлен\n\";
+        } else {
+            echo \"Блок не найден или не удалось заменить\n\";
+            exit(1);
+        }
+    "
     
-    # Экранирование для sed
-    sed -i "s/'items' => \[/'items' => array_merge(ZakharovAndrew\\\\\\\\user\\\\\\\\models\\\\\\\\Menu::getNavBar(), [/g" "$LAYOUT_FILE"
-    
-    # Шаг 2: Находим ]); NavBar::end(); и заменяем на ]) ]); NavBar::end();
-    log_info "Обновление закрывающих скобок..."
-    
-    # Сложная замена: находим ]); NavBar::end(); и заменяем на ]) ]); NavBar::end();
-    # Используем sed с несколькими шагами для надёжности
-    
-    # Шаг 2.1: Находим строку с NavBar::end() и добавляем перед ней закрывающие скобки
-    sed -i -e "/NavBar::end();/i\\
-    ])" "$LAYOUT_FILE"
-    
-    # Шаг 2.2: Добавляем ещё одну закрывающую скобку, если нужно
-    # Проверяем, не было ли уже добавлено
-    if ! grep -q "\\])\\]);" "$LAYOUT_FILE" 2>/dev/null; then
-        # Ищем последнее вхождение ]); NavBar::end();
-        sed -i -e "s/]); NavBar::end();/])\\n]);\\nNavBar::end();/g" "$LAYOUT_FILE"
-    fi
-    
-    # Проверка синтаксиса PHP
-    if php -l "$LAYOUT_FILE" >/dev/null 2>&1; then
-        log_success "views/layouts/main.php успешно обновлен"
+    # Проверка результата
+    if [ $? -eq 0 ]; then
+        # Проверка синтаксиса PHP
+        if php -l "$LAYOUT_FILE" >/dev/null 2>&1; then
+            log_success "views/layouts/main.php успешно обновлен"
+        else
+            log_error "Ошибка в синтаксисе views/layouts/main.php!"
+            log_info "Восстановление из резервной копии..."
+            cp "$BACKUP_FILE" "$LAYOUT_FILE"
+            return 1
+        fi
     else
-        log_error "Ошибка в синтаксисе views/layouts/main.php!"
+        log_error "Ошибка при замене блока навигации!"
         log_info "Восстановление из резервной копии..."
         cp "$BACKUP_FILE" "$LAYOUT_FILE"
         return 1

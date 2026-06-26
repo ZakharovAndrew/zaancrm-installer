@@ -1,6 +1,6 @@
 # 🦎 ZaanCRM Installer
 
-![ZaanCRM Installer](zaancrm.png)
+![ZaanCRM Installer](zaancrm-banner.png)
   
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Bash](https://img.shields.io/badge/bash-4.0+-green.svg)](https://www.gnu.org/software/bash/)

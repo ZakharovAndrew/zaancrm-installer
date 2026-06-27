@@ -1,0 +1,71 @@
+services:
+  app:
+    build: .
+    container_name: zaancrm-app
+    ports:
+      - "8080:80"
+    volumes:
+      - ./zaancrm-data:/var/www/html
+      - ./uploads:/var/www/html/web/uploads
+      - ./tmp:/tmp
+    environment:
+      - PHP_MEMORY_LIMIT=512M
+      - PHP_MAX_EXECUTION_TIME=300
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - zaancrm-network
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    container_name: zaancrm-db
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_password
+      - MYSQL_DATABASE=zaancrm
+      - MYSQL_USER=zaan_user
+      - MYSQL_PASSWORD=zaan_password
+      - MYSQL_ROOT_HOST=%
+    volumes:
+      - ./mysql-data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d
+    command: 
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - zaancrm-network
+    restart: unless-stopped
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: zaancrm-phpmyadmin
+    ports:
+      - "8081:80"
+    environment:
+      - PMA_HOST=db
+      - PMA_PORT=3306
+      - UPLOAD_LIMIT=100M
+    depends_on:
+      - db
+    networks:
+      - zaancrm-network
+    restart: unless-stopped
+
+networks:
+  zaancrm-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  zaancrm-data:
+  uploads:
+  mysql-init:

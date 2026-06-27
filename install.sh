@@ -446,6 +446,17 @@ return [
 ];
 EOF
 
+    sed -i 's/\/\*[\s\S]*?urlManager[\s\S]*?\*\//'"'urlManager' => [
+            'enablePrettyUrl' => true,
+            'showScriptName' => false,
+            'rules' => [               
+                'login' => '\''user/user/login'\'',
+                'logout' => '\''user/user/logout'\'',
+                'profile/<id:[0-9]+>' => '\''user/user/profile'\'',
+                'profile' => '\''user/user/profile'\'',
+            ],
+        ],/" config/web.php
+
     log_success "config/web.php успешно обновлен"
 }
 

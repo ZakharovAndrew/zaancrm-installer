@@ -335,7 +335,7 @@ create_project() {
     fi
     
     log_info "Создание проекта на основе Yii2 Basic..."
-    composer create-project --prefer-dist --no-interaction yiisoft/yii2-app-basic "$PROJECT_NAME"
+    composer create-project --prefer-dist --no-interaction yiisoft/yii2-app-basic "$PROJECT_NAME" "^2.0.55"
     
     cd "$PROJECT_DIR"
     log_success "Проект создан в $PROJECT_DIR"
@@ -446,7 +446,24 @@ return [
 ];
 EOF
 
-    sed -i 's/\/\*[\s\S]*?urlManager[\s\S]*?\*\//'"'urlManager' => [
+
+# Использование heredoc для PHP-кода
+	php <<'PHP'
+<?php
+$file = 'ZaanCRM/config/web.php';
+$content = file_get_contents($file);
+
+// Проверка, уже ли применены изменения
+if (strpos($content, 'array_merge(ZakharovAndrew\\user\\models\\Menu::getNavBar()') !== false) {
+    echo "Изменения уже применены\n";
+    exit(0);
+}
+
+$pattern = '/(\/\*(.*?)\'urlManager\'(.*?)\*\/)/s';
+
+$new_content = preg_replace(
+    $pattern,
+    "'urlManager' => [
             'enablePrettyUrl' => true,
             'showScriptName' => false,
             'rules' => [               
@@ -455,7 +472,19 @@ EOF
                 'profile/<id:[0-9]+>' => '\''user/user/profile'\'',
                 'profile' => '\''user/user/profile'\'',
             ],
-        ],/" config/web.php
+        ],",
+    $content,
+    1  // лимит = 1 (только первое вхождение)
+);
+
+if ($new_content !== null && $new_content !== $content) {
+    file_put_contents($file, $new_content);
+    echo "Блок навигации обновлен\n";
+} else {
+    echo "Блок не найден или не удалось заменить\n";
+    exit(1);
+}
+PHP
 
     log_success "config/web.php успешно обновлен"
 }
@@ -699,6 +728,7 @@ PHP
         return 1
     fi
 }
+
 # ============================================================================
 # Дополнительная настройка
 # ============================================================================

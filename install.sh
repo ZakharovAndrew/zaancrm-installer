@@ -450,7 +450,7 @@ EOF
 # Использование heredoc для PHP-кода
 	php <<'PHP'
 <?php
-$file = 'ZaanCRM/config/web.php';
+$file = 'config/web.php';
 $content = file_get_contents($file);
 
 // Проверка, уже ли применены изменения
@@ -680,17 +680,14 @@ if (strpos($content, 'array_merge(ZakharovAndrew\\user\\models\\Menu::getNavBar(
     exit(0);
 }
 
-// УПРОЩЁННЫЙ ПАТТЕРН: находим Nav::widget, затем 'items' => [, затем NavBar::end();
-$pattern = '/(Nav::widget(.*?)NavBar::end)/s';
+$pattern = '/<header id="header">/s';
 
-$new_content = preg_replace(
-	$pattern,
-	"Nav::widget([
-        'options' => ['class' => 'navbar-nav'],
-        'items' => array_merge(ZakharovAndrew\user\models\Menu::getNavBar(), [
+$new_content = str_replace(
+	'<header id="header">',
+	"<?php \$items = array_merge(ZakharovAndrew\user\models\Menu::getNavBar(), [
             ".'Yii::$app->user->isGuest'."
                 ? ['label' => 'Login', 'url' => ['/site/login']]
-                : '<li class="nav-item">'
+                : '<li class='nav-item'>'
                     . Html::beginForm(['/site/logout'])
                     . Html::submitButton(
                         'Logout (' . ".'Yii::$app'."->user->identity->username . ')',
@@ -698,11 +695,8 @@ $new_content = preg_replace(
                     )
                     . Html::endForm()
                     . '</li>'
-        ])
-    ]);
-    NavBar::end",
-	$content,
-	1  // лимит = 1 (только первое вхождение)
+        ]);?><header id="header">",
+	$content
 );
 
 if ($new_content !== null && $new_content !== $content) {

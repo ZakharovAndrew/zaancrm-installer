@@ -181,20 +181,43 @@ check_php() {
     if ! command -v php &> /dev/null; then
         log_error "PHP не установлен"
         echo ""
-        log_info "Установите PHP 7.4+:"
-        echo "  Ubuntu/Debian: sudo apt install php8.1 php8.1-cli php8.1-mbstring php8.1-xml php8.1-curl php8.1-zip php8.1-pdo php8.1-mysql php8.1-intl php8.1-gd php8.1-json"
-        echo "  CentOS/RHEL:   sudo yum install php php-cli php-mbstring php-xml php-curl php-zip php-pdo php-mysql php-json"
-        echo "  macOS:         brew install php@8.1"
+        log_info "Установите PHP 8.2+:"
+        echo "  Ubuntu/Debian: sudo apt install php8.2 php8.2-cli php8.2-mbstring php8.2-xml php8.2-curl php8.2-zip php8.2-pdo php8.2-mysql php8.2-intl php8.2-gd"
+        echo "  CentOS/RHEL:   sudo yum install php82 php82-cli php82-mbstring php82-xml php82-curl php82-zip php82-pdo php82-mysql php82-intl php82-gd"
+        echo "  macOS:         brew install php@8.2"
         exit 1
     fi
     
-    PHP_VERSION=$(php -v | head -n1 | cut -d' ' -f2)
+    PHP_VERSION=$(php -v | head -n1 | cut -d' ' -f2 | cut -d'-' -f1)
+    PHP_MAJOR_MINOR=$(echo "$PHP_VERSION" | cut -d'.' -f1,2)
+    
     log_success "PHP версия: $PHP_VERSION"
     
-    if [[ "$PHP_VERSION" < "7.4" ]]; then
-        log_error "Требуется PHP 7.4 или выше"
+    # Проверка на PHP 8.2 или выше
+	if [[ "$PHP_VERSION" < "8.2" ]]; then
+    # if [[ ! "$PHP_MAJOR_MINOR" =~ ^8\.[2-9]$ ]] && [[ ! "$PHP_MAJOR_MINOR" =~ ^8\.[1-9][0-9]$ ]] && [[ ! "$PHP_MAJOR_MINOR" =~ ^9\. ]]; then
+        log_error "Требуется PHP 8.2 или выше. Текущая версия: $PHP_VERSION"
+        echo ""
+        log_info "Рекомендации по обновлению:"
+        echo "  Ubuntu/Debian:"
+        echo "    sudo add-apt-repository ppa:ondrej/php"
+        echo "    sudo apt update"
+        echo "    sudo apt install php8.2 php8.2-cli php8.2-common php8.2-mysql php8.2-zip php8.2-gd php8.2-mbstring php8.2-curl php8.2-xml php8.2-bcmath php8.2-intl"
+        echo "    sudo update-alternatives --set php /usr/bin/php8.2"
+        echo "  CentOS/RHEL:"
+        echo "    sudo dnf install epel-release"
+        echo "    sudo dnf install https://rpms.remirepo.net/enterprise/remi-release-8.rpm"
+        echo "    sudo dnf module reset php"
+        echo "    sudo dnf module enable php:remi-8.2"
+        echo "    sudo dnf install php php-cli php-common php-mysqlnd php-zip php-gd php-mbstring php-curl php-xml php-bcmath php-intl"
+        echo "  macOS:"
+        echo "    brew install php@8.2"
+        echo "    echo 'export PATH=\"/opt/homebrew/opt/php@8.2/bin:\$PATH\"' >> ~/.zshrc"
+        echo "    source ~/.zshrc"
         exit 1
     fi
+    
+    log_success "PHP 8.2+ обнаружен. Версия: $PHP_VERSION"
 }
 
 check_composer() {
@@ -648,9 +671,9 @@ EOF
 }
 
 update_layout_main() {
-    log_info "Обновление views/layouts/main.php..."
+    log_info "Обновление views/layouts/_header.php..."
     
-    LAYOUT_FILE="views/layouts/main.php"
+    LAYOUT_FILE="views/layouts/_header.php"
     
     if [ ! -f "$LAYOUT_FILE" ]; then
         log_error "Файл $LAYOUT_FILE не найден!"
@@ -658,7 +681,7 @@ update_layout_main() {
     fi
     
     # Создание резервной копии
-    BACKUP_FILE="views/layouts/main.php.backup.$(date +%Y%m%d_%H%M%S)"
+    BACKUP_FILE="views/layouts/_header.php.backup.$(date +%Y%m%d_%H%M%S)"
     cp "$LAYOUT_FILE" "$BACKUP_FILE"
     log_info "Создана резервная копия: $BACKUP_FILE"
     
@@ -671,7 +694,7 @@ update_layout_main() {
     # Использование heredoc для PHP-кода
     php <<'PHP'
 <?php
-$file = 'views/layouts/main.php';
+$file = 'views/layouts/_header.php';
 $content = file_get_contents($file);
 
 // Проверка, уже ли применены изменения
@@ -687,7 +710,7 @@ $new_content = str_replace(
 	"<?php \$items = array_merge(ZakharovAndrew\user\models\Menu::getNavBar(), [
             ".'Yii::$app->user->isGuest'."
                 ? ['label' => 'Login', 'url' => ['/site/login']]
-                : '<li class='nav-item'>'
+                : '<li class=\"nav-item\">'
                     . Html::beginForm(['/site/logout'])
                     . Html::submitButton(
                         'Logout (' . ".'Yii::$app'."->user->identity->username . ')',
@@ -710,9 +733,9 @@ PHP
     
     if [ $? -eq 0 ]; then
         if php -l "$LAYOUT_FILE" >/dev/null 2>&1; then
-            log_success "views/layouts/main.php успешно обновлен"
+            log_success "views/layouts/_header.php успешно обновлен"
         else
-            log_error "Ошибка в синтаксисе views/layouts/main.php!"
+            log_error "Ошибка в синтаксисе views/layouts/_header.php!"
             cp "$BACKUP_FILE" "$LAYOUT_FILE"
             return 1
         fi

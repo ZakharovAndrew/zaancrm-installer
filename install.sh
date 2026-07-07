@@ -56,12 +56,10 @@ CREATE_DEFAULT_PAGES=true
 
 # Обязательные модули (ZaanCRM core)
 CORE_MODULES=(
-    "zakharov-andrew/yii2-user"           # Расширенный модуль пользователей
-    "zakharov-andrew/yii2-pages"          # Модуль управления страницами
     "yiisoft/yii2-bootstrap5"              # Bootstrap 5 интерфейс
     # "yiisoft/yii2-fontawesome"             # Иконки FontAwesome
     "kartik-v/yii2-dialog"                 # Диалоговые окна
-    "kartik-v/yii2-grid"                   # Расширенная таблица
+    # "kartik-v/yii2-grid"                   # Расширенная таблица
     "kartik-v/yii2-widget-select2"         # Улучшенные select
 )
 
@@ -409,13 +407,15 @@ install_core_modules() {
     # Установка модуля страниц
     log_info "Установка модуля страниц (zakharov-andrew/yii2-pages)..."
     composer require --prefer-dist --no-interaction "zakharov-andrew/yii2-pages"
+
+	# Установка модуля опросов
+    log_info "Установка модуля опросов (zakharov-andrew/yii2-poll)..."
+    composer require --prefer-dist --no-interaction "zakharov-andrew/yii2-poll"
     
     # Установка остальных обязательных модулей
     for module in "${CORE_MODULES[@]}"; do
-        if [[ "$module" != "zakharov-andrew/yii2-user" ]] && [[ "$module" != "zakharov-andrew/yii2-pages" ]]; then
-            log_info "Установка $module..."
-            composer require --prefer-dist --no-interaction "$module"
-        fi
+        log_info "Установка $module..."
+        composer require --prefer-dist --no-interaction "$module"
     done
     
     # Обновление config/web.php
@@ -605,7 +605,11 @@ run_migrations() {
     # Миграции модуля страниц
     log_info "Миграции модуля страниц..."
     php yii migrate/up --migrationPath=@vendor/zakharov-andrew/yii2-pages/migrations --interactive=0
-    
+
+	# Миграции модуля опросов
+    log_info "Миграции модуля страниц..."
+    php yii migrate/up --migrationPath=@vendor/zakharov-andrew/yii2-poll/migrations --interactive=0
+
     log_success "Миграции выполнены"
 }
 
